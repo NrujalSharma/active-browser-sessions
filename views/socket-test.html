@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Socket Test</title>
+  </head>
+  <script type="text/javascript">
+    let socket;
+    let app = 'test1'
+    let oneSessionPerUser = true;
+
+    window.addEventListener('load', (event) => {
+      if(!localStorage.getItem(`${app}tabsopen`)) localStorage.setItem(`${app}tabsopen`, 1)
+      else {
+        let tabsCount = localStorage.getItem(`${app}tabsopen`)
+        tabsCount++
+        localStorage.setItem(`${app}tabsopen`, tabsCount)
+      }
+    });
+
+    window.addEventListener('unload', function(event) {
+      let tabsCount = localStorage.getItem(`${app}tabsopen`)
+      if(tabsCount > 1){
+        tabsCount--
+        localStorage.setItem(`${app}tabsopen`, tabsCount)
+        if(!oneSessionPerUser) socket.emit('decrement-user')
+      } else {
+        localStorage.removeItem(`${app}tabsopen`)
+        socket.emit('decrement-user')
+      }
+    });
+
+    function loadScript(url, callback) {
+      console.log('load function called')
+      let script = document.createElement( "script" )
+      script.type = "text/javascript";
+      if(script.readyState) {  // only required for IE <9
+        script.onreadystatechange = function() {
+          if ( script.readyState === "loaded" || script.readyState === "complete" ) {
+            script.onreadystatechange = null;
+            callback();
+          }
+        };
+      } else {  //Others
+        script.onload = function() {
+          callback();
+        };
+      }
+
+      script.src = url;
+      document.getElementsByTagName( "head" )[0].appendChild(script);
+    }
+
+    loadScript('https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js', function() {
+      console.log('loaded')
+      let increment=false;
+      if(oneSessionPerUser){
+        if(!localStorage.getItem(`${app}tabsopen`)) increment = true
+        else {
+          let tabsCount = localStorage.getItem(`${app}tabsopen`)
+          if(tabsCount>1) increment = false
+        }
+      } else {
+        increment = true
+      }
+
+      socket = io('http://localhost:3000/', { query: `application=${app}&increment=${increment}`, transports: [ 'websocket' ] })
+
+      socket.on('user-join', (activeUsers) => {
+        document.getElementById('count').innerHTML = activeUsers
+      })
+
+      socket.on('user-leave', (activeUsers) => {
+        document.getElementById('count').innerHTML = activeUsers
+      })
+    });
+  </script>
+  <body>
+    <h1 id='count'></h1>
+  </body>
+</html>
